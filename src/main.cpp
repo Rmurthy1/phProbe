@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
+#include "ph_surveyor.h"             
+
 
 const byte rxPin = 2;
 const byte txPin = 3;
