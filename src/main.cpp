@@ -33,9 +33,19 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 
+Surveyor_pH pH = Surveyor_pH(A0);   
+
+
+uint8_t user_bytes_received = 0;                
+const uint8_t bufferlen = 32;                   
+char user_data[bufferlen];                     
+
+
+
 int distanceFromSensor();
 void lcdSetup();
 void updateLCD(int distance, double temperature);
+void parse_cmd(char* string);
 
 void setup() {
   Serial.begin(9600);
@@ -53,6 +63,13 @@ void setup() {
 
   lcdSetup();
   sensors.begin(); // IC Default 9 bit. If you have troubles consider upping it 12. Ups the delay giving the IC more time to process the temperature measurement
+
+  delay(200);
+  Serial.println(F("Use commands \"CAL,7\", \"CAL,4\", and \"CAL,10\" to calibrate the circuit to those respective values"));
+  Serial.println(F("Use command \"CAL,CLEAR\" to clear the calibration"));
+  if (pH.begin()) {                                     
+    Serial.println("Loaded EEPROM");
+  }
 
 }
 
@@ -72,6 +89,16 @@ void loop() {
     Serial.println("sent");
   }
 
+  if (Serial.available() > 0) {                                                      
+    user_bytes_received = Serial.readBytesUntil(13, user_data, sizeof(user_data));   
+  }
+
+  if (user_bytes_received) {                                                      
+    parse_cmd(user_data);                                                          
+    user_bytes_received = 0;                                                        
+    memset(user_data, 0, sizeof(user_data));                                         
+  }
+
   // every 500ms, read the distance from the sensor
   if (millis() % 5000 == 0) {
     int distance = distanceFromSensor();
@@ -81,6 +108,7 @@ void loop() {
     Serial.println(distance);
     message = String(distance);
     messageReady = true;
+    Serial.println(pH.read_ph());  
   }
 }
 
@@ -107,4 +135,24 @@ void updateLCD(int distance, double temperature) {
   lcd.setCursor(0,1);
   lcd.print("Temp: ");
   lcd.print(temperature);
+}
+
+void parse_cmd(char* string) {                   
+  strupr(string);                                
+  if (strcmp(string, "CAL,7") == 0) {       
+    pH.cal_mid();                                
+    Serial.println("MID CALIBRATED");
+  }
+  else if (strcmp(string, "CAL,4") == 0) {            
+    pH.cal_low();                                
+    Serial.println("LOW CALIBRATED");
+  }
+  else if (strcmp(string, "CAL,10") == 0) {      
+    pH.cal_high();                               
+    Serial.println("HIGH CALIBRATED");
+  }
+  else if (strcmp(string, "CAL,CLEAR") == 0) { 
+    pH.cal_clear();                              
+    Serial.println("CALIBRATION CLEARED");
+  }
 }
